@@ -15,6 +15,22 @@
       "globs": ["*.md"],
       "fallthrough": true,
     },
+    
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "dump",
+      "preview_bucket_name": "dump"
+    } 
+  ],
+
+  "workflows": [
+    {
+      "name": "STORING_WORKFLOW",
+      "binding": "STORING_WORKFLOW",
+      "class_name": "InsertResearchPaperWorkflow"
+    }
   ],
   "observability": {
     "enabled": true,
