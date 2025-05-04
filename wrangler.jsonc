@@ -18,6 +18,14 @@
       "preview_bucket_name": "dump"
     } 
   ],
+
+  "workflows": [
+    {
+      "name": "STORING_WORKFLOW",
+      "binding": "STORING_WORKFLOW",
+      "class_name": "InsertResearchPaperWorkflow"
+    }
+  ],
   "observability": {
     "enabled": true,
   },

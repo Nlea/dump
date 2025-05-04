@@ -1,15 +1,19 @@
-import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:workers';
+import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import Replicate from "replicate";
+import OpenAI from "openai";
+import { R2Bucket } from '@cloudflare/workers-types';
 
 type Env = {
-  // Add your bindings here, e.g. Workers KV, D1, Workers AI, etc.
-  MY_WORKFLOW: Workflow;
-  REPLICATE_API_KEY: string;
+    REPLICATE_API_KEY: string;
+    OPENAI_API_KEY: string;
+    BUCKET: R2Bucket;
 };
 
+
+
+
 // User-defined params passed to your workflow
-type Params = {
-  email: string;
-  metadata: Record<string, string>;
+export type Params = {
   chunks: string[];
 };
 
@@ -23,52 +27,97 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<Env, Params>
       chunks.forEach((chunk: string) => {
         console.log(chunk);
       });
-      return chunks.join(' ');
+      return chunks;
+    });
+
+    const summary = await step.do('summarize chunks', async () => {
+      const openai = new OpenAI({
+        apiKey: this.env.OPENAI_API_KEY
+      });
+
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          {
+            role: "system",
+            content: `Transform these technical concepts into visual ideas that could be illustrated: ${chunks.join('\n\n')}\n\n Provide a short 2-3 sentence summary focusing on visual elements and metaphors that represent the key ideas and always include a goose.`
+
+          },
+          {
+            role: "user",
+            content: chunks.join('\n\n')
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 100
+      });
+
+      const summary = response.choices[0].message.content;
+      console.log('Generated summary:', summary);
+      return summary;
     });
 
     const prompt = await step.do('create prompt', async () => {
+
+
+
       const promptStyles = [
-        `Create a whiteboard-style illustration with bold sketch lines explaining: ${chunks}. Include a playful goose somewhere in the drawing interacting with the concepts. Use a hand-drawn style with thick marker lines.`,
-        `Illustrate ${chunks} in a San Francisco themed setting. Include iconic SF elements like the Golden Gate Bridge, cable cars, or fog-covered hills. Make it feel like a tech meetup in the Bay Area.`,
-        `Create an artistic and abstract visualization of: ${chunks}. Use bold colors, experimental shapes, and a contemporary art style that could be displayed in a modern gallery. Make it both scientific and avant-garde.`
+        `Create a clean, educational whiteboard-style illustration of ${summary} using clear diagrams and labeled sketches. Style: minimalistic line art with pops of primary color, resembling a classroom explainer video.`,
+        `Design a 90s tattoo-style artwork depicting ${summary} as part of an old-school composition. Include thick outlines, banners, roses, lightning bolts, and vintage fonts. Style: traditional Americana tattoo art from the 1990s with a slightly grungy twist.`,
+        `Illustrate an expressive, emotional scene in the style of Frida Kahlo representing ${summary}. Integrate surreal elements, vibrant folkloric patterns, flora and fauna, and deep emotional symbolism. Style: oil-painting-inspired, introspective and colorful with Mexican cultural motifs.`
       ];
       
       const randomIndex = Math.floor(Math.random() * promptStyles.length);
+      console.log(promptStyles[randomIndex]);
       return promptStyles[randomIndex];
     });
 
-    interface ReplicateResponse {
-      id: string;
-      status: string;
-      output: string[];
-    }
+    const imageUrl = await step.do('create images', async () => {
 
-    const createimages = await step.do('create images', async () => {
-      const response = await fetch('https://api.replicate.com/v1/predictions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Token ${this.env.REPLICATE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          version: '39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b',  // Stable Diffusion v2.1
-          input: {
-            prompt: prompt
-          }
-        })
-      });
+        const replicate = new Replicate({
+            auth: this.env.REPLICATE_API_KEY,
+          });
 
-      const prediction = await response.json() as ReplicateResponse;
-      return {
-        id: prediction.id,
-        status: prediction.status,
-        output: prediction.output
-      };
+        const input = {
+            prompt: prompt,
+            go_fast: true,
+            megapixels: "1",
+            num_outputs: 1,
+            aspect_ratio: "1:1",
+            output_format: "webp",
+            output_quality: 80,
+            num_inference_steps: 4
+          };
+          
+          const output = await replicate.run("black-forest-labs/flux-schnell", { input }) as Array<{ url: () => URL }>;
+          
+          // Get the URL from the first output and extract just the href
+          const urlObject = output[0].url();
+          const imageUrl = urlObject.href;
+          console.log('Generated image URL:', imageUrl);
+          return imageUrl;
+      
     });
 
-    const storeimages = await step.do('store images', async () => {
-        //store images in R2
-     
+    const fileName = await step.do('store images', async () => {
+        // Fetch the image from the URL
+        const response = await fetch(imageUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        
+        const imageData = await response.arrayBuffer();
+        
+        // Generate a unique filename using timestamp and random string
+        const timestamp = new Date().toISOString();
+        const randomStr = Math.random().toString(36).substring(7);
+        const filename = `image-${timestamp}-${randomStr}.webp`;
+        
+        // Store in R2
+        await this.env.BUCKET.put(filename, imageData);
+        
+        // Return the R2 URL
+        return filename;
     });
      
 
