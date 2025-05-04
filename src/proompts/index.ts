@@ -1,8 +1,8 @@
-import celebrity from "./celebrity.md";
-import poem from "./celebrity.md";
-import teen from "./celebrity.md";
-import weed from "./celebrity.md";
+import poem from "./poem.md";
+import teen from "./teen.md";
+import weed from "./weed.md";
+import dumb from "./dumb.md";
 
-const proompts = { celebrity, poem, teen, weed } as Record<string, string>;
+const proompts = { poem, teen, weed, dumb } as Record<string, string>;
 
 export default proompts;
