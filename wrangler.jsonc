@@ -9,6 +9,14 @@
       "globs": ["*.md"],
       "fallthrough": true,
     },
+    
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "dump",
+      "preview_bucket_name": "dump"
+    } 
   ],
   "observability": {
     "enabled": true,
