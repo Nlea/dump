@@ -1,8 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "dump",
+  "minify": true,
+  "main": "src/index.ts",
   "compatibility_date": "2025-02-04",
   "compatibility_flags": ["nodejs_compat"],
+  "route": {
+    "pattern": "dump.goalastair.com",
+    "custom_domain": true,
+  },
   "rules": [
     {
       "type": "Text",
