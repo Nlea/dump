@@ -7,8 +7,19 @@ import {
 import Replicate from "replicate";
 import OpenAI from "openai";
 
+import { R2Bucket } from '@cloudflare/workers-types';
+
+type Env = {
+    REPLICATE_API_KEY: string;
+    OPENAI_API_KEY: string;
+    BUCKET: R2Bucket;
+};
+
+
+
 // User-defined params passed to your workflow
 export type Params = {
+  url: string;
   chunks: string[];
 };
 
@@ -19,6 +30,50 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<
   async run(event: WorkflowEvent<Params>, step: WorkflowStep) {
     // Can access bindings on `this.env`
     // Can access params on `event.payload`
+    const chunks = await step.do('create chunks from research paper', async () => {
+      const url = event.payload.url;
+      const response = await fetch(url);
+      let text = await response.text();
+      
+      // Remove HTML tags and decode HTML entities
+      text = text.replace(/<[^>]*>/g, '') // Remove HTML tags
+                 .replace(/&nbsp;/g, ' ') // Replace &nbsp; with space
+                 .replace(/&amp;/g, '&') // Replace &amp; with &
+                 .replace(/&lt;/g, '<') // Replace &lt; with <
+                 .replace(/&gt;/g, '>') // Replace &gt; with >
+                 .replace(/&quot;/g, '"') // Replace &quot; with "
+                 .replace(/&#39;/g, "'") // Replace &#39; with '
+                 .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+                 .trim(); // Remove leading/trailing whitespace
+      
+      // Create chunks similar to Next.js approach
+      const chunkSize = 1000; // Adjust this value based on your needs
+      const overlap = 200;   // Overlap between chunks to maintain context
+      const chunks: string[] = [];
+      
+      let i = 0;
+      while (i < text.length) {
+        // Calculate the end of the current chunk
+        const end = Math.min(i + chunkSize, text.length);
+        
+        // Get the chunk
+        const chunk = text.slice(i, end);
+        
+        // Add the chunk to our array
+        chunks.push(chunk);
+        
+        // Move to next position, accounting for overlap
+        i = end - overlap;
+        
+        // If we're near the end, make sure we don't create tiny chunks
+        if (i + chunkSize >= text.length) {
+          i = text.length;
+        }
+      }
+      
+      return chunks;
+    })
+      
 
     const chunks = await step.do("store chunks", async () => {
       const chunks = event.payload.chunks || [];
@@ -75,6 +130,7 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<
       const summary = response.choices[0].message.content;
       console.log("Generated summary:", summary);
       return summary;
+
     });
 
     const prompt = await step.do("create prompt", async () => {

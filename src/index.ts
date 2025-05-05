@@ -89,14 +89,19 @@ app.post("/proompt/:variant", async (c) => {
 
 app.post("/workflow", async (c) => {
   const body = await c.req.json();
+  
+  if (typeof body.url !== 'string' || !body.url) {
 
-  if (!Array.isArray(body.chunks)) {
+
+
     c.status(400);
-    return c.json({ error: "Request body must contain a 'chunks' array" });
+    return c.json({ error: "Request body must contain a valid 'url' string" });
   }
 
   let instance = await c.env.STORING_WORKFLOW.create({
-    params: { chunks: body.chunks },
+
+    params: { url: body.url }
+
   });
 
   return Response.json({

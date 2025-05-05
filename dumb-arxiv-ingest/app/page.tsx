@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+
 import { useState, useEffect } from "react";
 import { scrapeArxivHtml } from "./actions/actions";
 import parse, {
@@ -14,6 +15,7 @@ export default function Home() {
   const [urlInput, setUrlInput] = useState("");
   const [error, setError] = useState("");
   const [dumbMode, setDumbMode] = useState("eli5");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scrapedHtml, setScrapedHtml] = useState<string | null>(null);
   const [textChunks, setTextChunks] = useState<string[] | null>(null);
@@ -23,16 +25,20 @@ export default function Home() {
   const [isValidUrl, setIsValidUrl] = useState<boolean | null>(null);
   useEffect(() => {
     if (!urlInput) {
-      setIsValidUrl(null);
+
+      setIsValidUrl(null); 
+
       return;
     }
     try {
       const parsedUrl = new URL(urlInput);
+
       setIsValidUrl(
         parsedUrl.protocol === "https:" &&
           parsedUrl.hostname === "arxiv.org" &&
           parsedUrl.pathname.startsWith("/html/"),
       );
+
     } catch (e) {
       setIsValidUrl(false);
     }
@@ -41,23 +47,28 @@ export default function Home() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+
     if (isValidUrl === false || !urlInput) {
       setError(
         "Please provide a valid arXiv HTML page URL (e.g., https://arxiv.org/html/xxxx.xxxxx)",
       );
+
       return;
     }
 
     setIsSubmitting(true);
-    setError("");
-    setScrapedHtml(null);
+
+    setError('');
+    setScrapedHtml(null); 
     setTextChunks(null);
     setFunTextChunks(null);
-    setShowFunVersion(true);
+    setShowFunVersion(true); 
+
 
     let scrapedChunks: string[] = [];
 
     try {
+
       console.log("Submitting URL:", urlInput, "Mode:", dumbMode);
       const result = await scrapeArxivHtml(urlInput);
 
@@ -66,10 +77,13 @@ export default function Home() {
           "Scraping successful. Received HTML content and text chunks.",
         );
         setScrapedHtml(result.htmlContent);
+
         setTextChunks(result.textChunks);
         scrapedChunks = result.textChunks;
 
         if (scrapedChunks.length > 0) {
+
+      
           console.log("--- Extracted Text Chunks ---");
           scrapedChunks.forEach((chunk, index) => {
             console.log(`Chunk ${index + 1}:`, chunk.substring(0, 100) + "...");
@@ -109,6 +123,7 @@ export default function Home() {
         },
       });
 
+
       for (const [index, chunk] of scrapedChunks.entries()) {
         console.log(`Fetching fun text for chunk ${index + 1}...`);
         try {
@@ -120,6 +135,7 @@ export default function Home() {
             method: "POST",
             headers: myHeaders,
             body: chunk,
+
             redirect: "follow",
           };
 
@@ -139,17 +155,21 @@ export default function Home() {
           const funResult = await response.text();
           console.log(`Received fun text for chunk ${index + 1}.`);
           setFunTextChunks((prevChunks) => {
+
             const newChunks = [...(prevChunks || [])];
             newChunks[index] = funResult;
             return newChunks;
           });
         } catch (fetchError: any) {
+
+
           console.error(
             `Error fetching fun text for chunk ${index + 1}:`,
             fetchError,
           );
           const errorMsg = `⚠️ Error getting fun version: ${chunk.substring(0, 50)}...`;
           setFunTextChunks((prevChunks) => {
+
             const newChunks = [...(prevChunks || [])];
             newChunks[index] = errorMsg;
             return newChunks;
@@ -158,7 +178,9 @@ export default function Home() {
         }
       }
 
+
       console.log("Finished incremental fun text fetching loop.");
+
       if (fetchErrorOccurred) {
         setError("Some fun text versions could not be loaded.");
       }
@@ -166,16 +188,20 @@ export default function Home() {
       setFunTextChunks([]);
     }
 
+
     setIsSubmitting(false);
+
   };
 
   const parserOptions: HTMLReactParserOptions = {
     replace: (domNode) => {
       if (
         domNode instanceof Element &&
+
         domNode.type === "tag" &&
         domNode.name === "div" &&
         domNode.attribs.class === "content-chunk"
+
       ) {
         return (
           <div className="mb-4 p-4 bg-gray-100 rounded-md shadow border border-gray-300 overflow-hidden prose max-w-none">
@@ -201,6 +227,7 @@ export default function Home() {
       </nav>
 
       <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
         {!textChunks && !isSubmitting && (
           <div className="max-w-2xl mx-auto text-center">
             <h1 className="text-4xl font-extrabold text-gray-800 sm:text-5xl md:text-6xl mb-6">
@@ -221,6 +248,7 @@ export default function Home() {
                   htmlFor="urlInput"
                   className="block text-sm font-medium text-gray-700 mb-1 text-left"
                 >
+
                   arXiv HTML URL
                 </label>
                 <input
@@ -231,6 +259,7 @@ export default function Home() {
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="https://arxiv.org/html/xxxx.xxxxx"
                   required
+
                   className={`w-full px-4 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 ${isValidUrl === false ? "border-red-500 ring-red-500" : "border-gray-300 focus:border-purple-500"}`}
                 />
                 <p
@@ -239,14 +268,17 @@ export default function Home() {
                   {isValidUrl === false
                     ? "Must be like https://arxiv.org/html/..."
                     : "Remember the /html/ part!"}
+
                 </p>
               </div>
 
               <div>
+
                 <label
                   htmlFor="dumbMode"
                   className="block text-sm font-medium text-gray-700 mb-1 text-left"
                 >
+
                   Select Dumb Mode:
                 </label>
                 <select
@@ -268,7 +300,9 @@ export default function Home() {
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isSubmitting || isValidUrl === false}
               >
+
                 {isSubmitting ? "Dumbifying..." : "Make it Dumb!"}
+
               </button>
             </form>
             {error && (
@@ -281,6 +315,7 @@ export default function Home() {
 
         {isSubmitting && (
           <div className="text-center py-10">
+
             <p className="text-lg font-semibold text-purple-700">
               Processing the paper...
             </p>
@@ -306,9 +341,11 @@ export default function Home() {
                 fill="currentColor"
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
+
             </svg>
           </div>
         )}
+
 
         {(textChunks || funTextChunks) && (
           <div className="w-full max-w-4xl mx-auto">
@@ -353,11 +390,13 @@ export default function Home() {
                 >
                   Scrape Another
                 </button>
+
               </div>
             </div>
 
             <div className="max-w-none">
               {(() => {
+
                 const cardBgClass = showFunVersion
                   ? "bg-purple-50 border-purple-200"
                   : "bg-white border-gray-200";
@@ -369,10 +408,12 @@ export default function Home() {
                       No text content chunks found.
                     </p>
                   );
+
                 }
 
                 return (
                   <div className="flex flex-col gap-4">
+
                     {textChunks.map((originalChunk, index) => (
                       <div
                         key={index}
@@ -407,6 +448,7 @@ export default function Home() {
                     Error displaying content.
                   </p>
                 );
+
               })()}
             </div>
           </div>
