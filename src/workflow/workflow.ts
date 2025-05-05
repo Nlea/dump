@@ -7,13 +7,8 @@ import {
 import Replicate from "replicate";
 import OpenAI from "openai";
 
-import { R2Bucket } from '@cloudflare/workers-types';
 
-type Env = {
-    REPLICATE_API_KEY: string;
-    OPENAI_API_KEY: string;
-    BUCKET: R2Bucket;
-};
+
 
 
 
@@ -74,11 +69,6 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<
       return chunks;
     })
       
-
-    const chunks = await step.do("store chunks", async () => {
-      const chunks = event.payload.chunks || [];
-      return chunks;
-    });
 
     const embeddings = await step.do("embed chunks", async () => {
       const res = await this.env.AI.run("@cf/baai/bge-m3", {
