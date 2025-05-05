@@ -10,8 +10,6 @@ type Env = {
 };
 
 
-
-
 // User-defined params passed to your workflow
 export type Params = {
   url: string;
@@ -68,37 +66,44 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<Env, Params>
       
 
     const storedChunks = await step.do('store chunks', async () => {
-      chunks.forEach((chunk: string) => {
-        console.log(chunk);
-      });
+      console.log('Number of chunks:', chunks.length);
+      if (chunks.length > 0) {
+        console.log('First chunk preview:', chunks[0].substring(0, 100));
+      }
       return chunks;
     });
 
     const summary = await step.do('summarize chunks', async () => {
-      const openai = new OpenAI({
-        apiKey: this.env.OPENAI_API_KEY
-      });
+      try {
+        const openai = new OpenAI({
+          apiKey: this.env.OPENAI_API_KEY
+        });
 
-      const response = await openai.chat.completions.create({
-        model: "o4-mini",
-        messages: [
-          {
-            role: "system",
-            content: `Transform these technical concepts into visual ideas that could be illustrated: ${chunks.join('\n\n')}\n\n Provide a short 2-3 sentence summary focusing on visual elements and metaphors that represent the key ideas and always include a goose.`
+        console.log('Starting OpenAI request with chunks length:', chunks.join('\n\n').length);
+        
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini", // Updated to use GPT-4o Mini
+          messages: [
+            {
+              role: "system",
+              content: `Transform these technical concepts into visual ideas that could be illustrated: ${chunks.join('\n\n')}\n\n Provide a short 2-3 sentence summary focusing on visual elements and metaphors that represent the key ideas and always include a goose.`
+            },
+            {
+              role: "user",
+              content: chunks.join('\n\n')
+            }
+          ],
+          temperature: 1,
+          max_tokens: 100
+        });
 
-          },
-          {
-            role: "user",
-            content: chunks.join('\n\n')
-          }
-        ],
-        temperature: 1,
-        max_completion_tokens: 100
-      });
-
-      const summary = response.choices[0].message.content;
-      console.log('Generated summary:', summary);
-      return summary;
+        const summary = response.choices[0].message.content;
+        console.log('Generated summary:', summary);
+        return summary;
+      } catch (error) {
+        console.error('Error in summarize chunks:', error);
+        throw error;
+      }
     });
 
     const prompt = await step.do('create prompt', async () => {
