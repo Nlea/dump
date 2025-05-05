@@ -15,22 +15,29 @@
       "globs": ["*.md"],
       "fallthrough": true,
     },
-    
   ],
   "r2_buckets": [
     {
       "binding": "BUCKET",
-      "bucket_name": "dump",
-      "preview_bucket_name": "dump"
-    } 
+      "bucket_name": "dump-wnam",
+      "preview_bucket_name": "dump-wnam",
+    },
   ],
-
+  "ai": {
+    "binding": "AI",
+  },
+  "vectorize": [
+    {
+      "index_name": "dump",
+      "binding": "VECTORIZE",
+    },
+  ],
   "workflows": [
     {
       "name": "STORING_WORKFLOW",
       "binding": "STORING_WORKFLOW",
-      "class_name": "InsertResearchPaperWorkflow"
-    }
+      "class_name": "InsertResearchPaperWorkflow",
+    },
   ],
   "observability": {
     "enabled": true,

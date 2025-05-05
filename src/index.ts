@@ -19,6 +19,13 @@ app.use(
     origin: "*",
   }),
 );
+
+app.use(
+  "/workflow",
+  cors({
+    origin: "*",
+  }),
+);
 app.post("/proompt/:variant", async (c) => {
   if (c.req.header("Authorization") !== "Bearer dumpaihackathon") {
     console.log(c.req.header());
@@ -82,14 +89,14 @@ app.post("/proompt/:variant", async (c) => {
 
 app.post("/workflow", async (c) => {
   const body = await c.req.json();
-  
+
   if (!Array.isArray(body.chunks)) {
     c.status(400);
     return c.json({ error: "Request body must contain a 'chunks' array" });
   }
 
   let instance = await c.env.STORING_WORKFLOW.create({
-    params: { chunks: body.chunks }
+    params: { chunks: body.chunks },
   });
 
   return Response.json({
@@ -100,7 +107,7 @@ app.post("/workflow", async (c) => {
 
 app.get("/openapi.json", (c) => {
   const spec = createOpenAPISpec(app, {
-    info: { title: "My API", version: "1.0.0" }
+    info: { title: "My API", version: "1.0.0" },
   });
   return c.json(spec);
 });
@@ -109,13 +116,10 @@ app.use(
   "/fp/*",
   createFiberplane({
     openapi: {
-      url: "/openapi.json"
-    }
-  })
+      url: "/openapi.json",
+    },
+  }),
 );
 
-
-
 export default app;
-export { InsertResearchPaperWorkflow } from './workflow/workflow';
-  
+export { InsertResearchPaperWorkflow } from "./workflow/workflow";
