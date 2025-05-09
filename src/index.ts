@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import OpenAI from "openai";
 import { cors } from "hono/cors";
 import proompts from "./proompts";
+import { basicAuth } from "hono/basic-auth";
 import { Params } from "./workflow/workflow";
 import { createOpenAPISpec, createFiberplane } from "@fiberplane/hono";
 
@@ -9,6 +10,8 @@ type Env = {
   // Add your bindings here, e.g. Workers KV, D1, Workers AI, etc.
   STORING_WORKFLOW: Workflow;
   OPENAI_API_KEY: string;
+  VECTORIZE: Vectorize;
+  AI: Ai;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -26,6 +29,10 @@ app.use(
     origin: "*",
   }),
 );
+
+
+
+
 app.post("/proompt/:variant", async (c) => {
   if (c.req.header("Authorization") !== "Bearer dumpaihackathon") {
     console.log(c.req.header());
@@ -107,6 +114,87 @@ app.post("/workflow", async (c) => {
   return Response.json({
     id: instance.id,
     details: await instance.status(),
+  });
+});
+
+app.post("/vector-search-query", async (c) => {
+  const {query} = await c.req.json();
+
+  // Get embeddings from the model
+  const embeddings = await c.env.AI.run(
+    "@cf/baai/bge-m3",
+    {
+      text: [query],
+    },
+  ) as { data: number[][] };
+
+  // Get the first embedding vector from the response
+  const vectorArray = embeddings.data[0];
+
+  // Log the vector dimensions for debugging
+  console.log('Vector dimensions:', vectorArray.length);
+
+  let matches = await c.env.VECTORIZE.query(vectorArray, {
+    topK: 1,
+    returnMetadata: true
+  });
+  // Format the response to include metadata
+  const formattedMatches = matches.matches.map(match => ({
+    id: match.id,
+    score: match.score,
+    content: match.metadata?.content || 'No content available'
+  }));
+
+  return Response.json({
+    count: matches.count,
+    matches: formattedMatches
+  });
+
+
+  });
+
+
+app.post("/ask", async (c) => {
+  const { question } = await c.req.json();
+
+  // Get embeddings for the question
+  const embeddings = await c.env.AI.run(
+    "@cf/baai/bge-m3",
+    {
+      text: [question],
+    },
+  ) as { data: number[][] };
+
+  // Get the first embedding vector
+  const vectorArray = embeddings.data[0];
+
+  // Search for relevant content
+  let matches = await c.env.VECTORIZE.query(vectorArray, {
+    topK: 3, // Get top 3 most relevant chunks
+    returnMetadata: true
+  });
+
+  // Extract the content from matches
+  const relevantContent = matches.matches
+    .map(match => match.metadata?.content)
+    .filter(content => content) // Remove any undefined content
+    .join('\n\n');
+
+  // Generate answer using AI
+  const answer = await c.env.AI.run("@cf/meta/llama-2-7b-chat-int8", {
+    messages: [
+      { role: "system", content: "You are a helpful assistant that answers questions based on the provided context. Keep answers concise and relevant." },
+      { role: "user", content: `Context: ${relevantContent}\n\nQuestion: ${question}\n\nAnswer:` }
+    ],
+  }) as { response: string };
+
+  return Response.json({
+    question,
+    answer: answer.response,
+    relevantSources: matches.matches.map(match => ({
+      content: match.metadata?.content,
+      similarity: match.score
+    }))
   });
 });
 

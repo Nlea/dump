@@ -7,11 +7,6 @@ import {
 import Replicate from "replicate";
 import OpenAI from "openai";
 
-
-
-
-
-
 // User-defined params passed to your workflow
 export type Params = {
   url: string;
@@ -77,6 +72,7 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<
       if (!("data" in res && res.data)) {
         throw new Error("No embeddings generated");
       }
+      console.log("Generated embeddings:", res.data);
       return res.data;
     });
 
@@ -85,7 +81,7 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<
         await Promise.all(
           embeddings.map(async (e, i) => ({
             id: Buffer.from(
-              await crypto.subtle.digest("sha1", new Uint8Array(e)),
+              await crypto.subtle.digest("SHA-256", new Uint8Array(e)),
             ).toString("base64"),
             values: e,
             metadata: {
@@ -95,6 +91,7 @@ export class InsertResearchPaperWorkflow extends WorkflowEntrypoint<
         ),
       ),
     );
+
 
     const summary = await step.do("summarize chunks", async () => {
       const openai = new OpenAI({

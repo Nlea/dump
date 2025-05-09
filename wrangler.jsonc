@@ -5,10 +5,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-02-04",
   "compatibility_flags": ["nodejs_compat"],
-  "route": {
-    "pattern": "dump.goalastair.com",
-    "custom_domain": true,
-  },
+//"route": {
+//    "pattern": "dump.goalastair.com",
+//    "custom_domain": true,
+//  },
   "rules": [
     {
       "type": "Text",
